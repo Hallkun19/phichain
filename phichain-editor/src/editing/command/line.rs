@@ -1,6 +1,6 @@
 use crate::events::line::{DespawnLineEvent, SpawnLineEvent};
 use crate::events::EditorEvent;
-use crate::serialization::SerializeLine;
+use crate::removed::RemovedExt;
 use bevy::prelude::*;
 use phichain_chart::serialization::SerializedLine;
 use undo::Edit;
@@ -44,12 +44,11 @@ impl Edit for CreateLine {
 #[derive(Debug, Clone)]
 pub struct RemoveLine {
     entity: Entity,
-    line: Option<(SerializedLine, Option<Entity>)>,
 }
 
 impl RemoveLine {
     pub fn new(entity: Entity) -> Self {
-        Self { entity, line: None }
+        Self { entity }
     }
 }
 
@@ -61,28 +60,15 @@ impl Edit for RemoveLine {
     // Instead, we retain the entity, despawn all its children and remove all components
     // When undoing, we restore the line entity and its children
     fn edit(&mut self, target: &mut Self::Target) -> Self::Output {
-        let parent = target
-            .entity(self.entity)
-            .get::<ChildOf>()
-            .map(|x| x.parent());
-        self.line = Some((SerializedLine::serialize_line(target, self.entity), parent));
-        DespawnLineEvent::builder()
-            .target(self.entity)
-            .keep_entity(true)
-            .build()
-            .run(target);
+        target
+            .entity_mut(self.entity)
+            .increase_removed::<Children>();
     }
 
     fn undo(&mut self, target: &mut Self::Target) -> Self::Output {
-        if let Some(ref line) = self.line {
-            // restore line entity and its children
-            SpawnLineEvent::builder()
-                .line(line.0.clone())
-                .maybe_parent(line.1)
-                .target(self.entity)
-                .build()
-                .run(target);
-        }
+        target
+            .entity_mut(self.entity)
+            .decrease_removed::<Children>();
     }
 }
 

@@ -1,3 +1,4 @@
+use bevy::ecs::entity_disabling::Disabled;
 use bevy::prelude::{Entity, World};
 use phichain_chart::event::LineEvent;
 use phichain_chart::line::Line;
@@ -25,6 +26,10 @@ impl SerializeLine for SerializedLine {
 
         if let Some(children) = children {
             for child in children.iter() {
+                if world.entity(child).contains::<Disabled>() {
+                    continue;
+                }
+
                 if let Some(note) = world.get::<Note>(child) {
                     if world.get::<CurveNote>(child).is_some() {
                         // skip curve notes
